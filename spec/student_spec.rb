@@ -17,24 +17,12 @@ describe Student do
           :biography => "Programming is my favorite thing in the whole wide world."
         }
 
-        avi = Student.new
-        avi.id = attributes[:id]
-        avi.name = attributes[:name]
-        avi.tagline = attributes[:tagline]
-        avi.github = attributes[:github]
-        avi.twitter = attributes[:twitter]
-        avi.blog_url = attributes[:blog_url]
-        avi.image_url = attributes[:image_url]
-        avi.biography = attributes[:biography]
-
-        expect(avi.id).to eq(attributes[:id])
-        expect(avi.name).to eq(attributes[:name])
-        expect(avi.tagline).to eq(attributes[:tagline])
-        expect(avi.github).to eq(attributes[:github])
-        expect(avi.twitter).to eq(attributes[:twitter])
-        expect(avi.blog_url).to eq(attributes[:blog_url])
-        expect(avi.image_url).to eq(attributes[:image_url])
-        expect(avi.biography).to eq(attributes[:biography])
+        Student.new.tap do |s|
+          attributes.each do |key, value|
+            s.send("#{key}=", value)
+            expect(s.send(key)).to eq(value)
+          end  
+        end
 
       end
     end
@@ -42,7 +30,7 @@ describe Student do
 
   describe '::create_table' do
     it 'creates a student table' do
-      DB[:conn].execute('DROP TABLE IF EXISTS students')
+      Student.drop_table
       Student.create_table
 
       table_check_sql = "SELECT tbl_name FROM sqlite_master WHERE type='table' AND tbl_name='students';"
@@ -52,45 +40,11 @@ describe Student do
 
   describe '::drop_table' do
     it "drops the student table" do
+      Student.create_table
       Student.drop_table
 
       table_check_sql = "SELECT tbl_name FROM sqlite_master WHERE type='table' AND tbl_name='students';"
       expect(DB[:conn].execute(table_check_sql)[0]).to be_nil
-    end
-  end
-
-  describe '#insert' do
-    it 'inserts the student into the database' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.tagline = "Teacher"
-      avi.github = "aviflombaum"
-      avi.twitter = "aviflombaum"
-      avi.blog_url = "http://aviflombaum.com"
-      avi.image_url = "http://aviflombaum.com/picture.jpg"
-      avi.biography = "aviflombaum"
-
-      avi.insert
-
-      select_sql = "SELECT name FROM students WHERE name = 'Avi'"
-      result = DB[:conn].execute(select_sql)[0]
-
-      expect(result[0]).to eq("Avi")
-    end
-
-    it 'updates the current instance with the ID of the student from the database' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.tagline = "Teacher"
-      avi.github = "aviflombaum"
-      avi.twitter = "aviflombaum"
-      avi.blog_url = "http://aviflombaum.com"
-      avi.image_url = "http://aviflombaum.com/picture.jpg"
-      avi.biography = "aviflombaum"
-
-      avi.insert
-
-      expect(avi.id).to eq(1)
     end
   end
 
@@ -110,62 +64,138 @@ describe Student do
     end
   end
 
-  describe '::find_by_name' do
-    it 'returns an instance of student that matches the name from the DB' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.tagline = "Teacher"
-      avi.github = "aviflombaum"
-      avi.twitter = "aviflombaum"
-      avi.blog_url = "http://aviflombaum.com"
-      avi.image_url = "http://aviflombaum.com/picture.jpg"
-      avi.biography = "aviflombaum"
+  context "manipulating students" do
+  
+    let(:avi){
+      Student.new.tap do |s|
+        s.name = "Avi"
+        s.tagline = "Teacher"
+        s.github = "aviflombaum"
+        s.twitter = "aviflombaum"
+        s.blog_url = "http://aviflombaum.com"
+        s.image_url = "http://aviflombaum.com/picture.jpg"
+        s.biography = "aviflombaum"
+      end
+    }
 
-      avi.insert
-
-      avi_from_db = Student.find_by_name("Avi")
-      expect(avi_from_db.name).to eq("Avi")
-      expect(avi_from_db).to be_an_instance_of(Student)
+    before do
+      Student.create_table
     end
-  end
+    
+    after do
+      Student.drop_table
+      Student.clear_all
+    end    
 
-  describe "#update" do
-    it 'updates and persists a student in the database' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.insert
+    describe '#insert' do
+      it "inserts the student into the database and updates the current instance's ID" do
+        avi.insert
 
-      avi.name = "Bob"
-      original_id = avi.id
+        select_sql = "SELECT name FROM students WHERE name = 'Avi'"
+        result = DB[:conn].execute(select_sql)[0]
 
-      avi.update
-
-      avi_from_db = Student.find_by_name("Avi")
-      expect(avi_from_db).to be_nil
-
-      bob_from_db = Student.find_by_name("Bob")
-      expect(bob_from_db).to be_an_instance_of(Student)
-      expect(bob_from_db.name).to eq("Bob")
-      expect(bob_from_db.id).to eq(original_id)
-    end
-  end
-
-  describe '#save' do
-    it "chooses the right thing on first save" do
-      avi = Student.new
-      avi.name = "Avi"
-      expect(avi).to receive(:insert)
-      avi.save
+        expect(result[0]).to eq("Avi")
+        expect(avi.id).to eq(1)
+      end
     end
 
-    it 'chooses the right thing for all others' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.save
+    describe "#update" do
+      it 'updates and persists a student in the database' do
+        avi.insert
 
-      avi.name = "Bob"
-      expect(avi).to receive(:update)
-      avi.save
+        avi.name = "Bob"
+        original_id = avi.id
+
+        avi.update
+
+        avi_from_db = Student.find_by_name("Avi")
+        expect(avi_from_db).to be_nil
+
+        bob_from_db = Student.find_by_name("Bob")
+        expect(bob_from_db).to be_an_instance_of(Student)
+        expect(bob_from_db.name).to eq("Bob")
+        expect(bob_from_db.id).to eq(original_id)
+      end
     end
+
+    describe '::find_by_name' do
+      it 'returns an instance of student that matches the name from the DB' do
+        avi.save
+
+        avi_from_db = Student.find_by_name("Avi")
+        expect(avi_from_db.name).to eq("Avi")
+        expect(avi_from_db).to be_an_instance_of(Student)
+      end
+    end
+
+    describe '#save' do
+      it "chooses the right thing on first save" do
+        expect(avi).to receive(:insert)
+        avi.save
+      end
+
+      it 'chooses the right thing for all others' do
+        avi.save
+
+        avi.name = "Bob"
+        expect(avi).to receive(:update)
+        avi.save
+      end
+    end
+
+    describe '::all' do
+      it 'has our default "Avi" instance in an array' do
+        avi.save
+        all_students = Student.all
+        expect(all_students).to be_an_instance_of(Array)
+        expect(all_students.size).to eq(1)
+        expect(all_students.include?(avi)).to eq(true)
+      end
+      
+      it 'tracks any other added student' do
+        avi.save
+
+        newcomer = Student.new  
+        newcomer.name = 'Bob'
+
+        all_students = Student.all
+        expect(all_students.size).to eq(2)
+        expect(all_students.include?(newcomer)).to eq(true)
+      end
+    end 
+
+    describe "::clear_all" do
+      it 'clears all_students array' do
+        avi.save
+        newcomer = Student.new
+        newcomer.name = 'Bob'
+
+        Student.clear_all
+        all_students = Student.all
+        expect(all_students.size).to eq(0)
+      end  
+    end 
+
+    describe '#delete' do
+      it 'deletes a student from both database and all_students array, and sets its ID to nil' do
+        avi.save
+        old_avi_id = avi.id
+        avi.delete
+
+        all_students = Student.all
+        expect(all_students.include?(avi)).to eq(false)
+        expect(avi.id).to be_nil
+
+        row = DB[:conn].execute("SELECT * FROM students WHERE id = ?", old_avi_id)[0]
+        expect(row).to be_nil
+      end  
+    end  
+
+    describe '#id=' do
+      it 'cannot change an ID' do
+        avi.save
+        expect{avi.id = 2}.to raise_error(StudentError)
+      end  
+    end  
   end
 end
