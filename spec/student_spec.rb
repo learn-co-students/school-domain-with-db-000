@@ -112,12 +112,12 @@ describe Student do
 
   describe '::find_by_name' do
     it 'returns an instance of student that matches the name from the DB' do
-      avi = Student.new
-      avi.name = "Avi"
-      avi.tagline = "Teacher"
-      avi.github = "aviflombaum"
-      avi.twitter = "aviflombaum"
-      avi.blog_url = "http://aviflombaum.com"
+      avi           = Student.new
+      avi.name      = "Avi"
+      avi.tagline   = "Teacher"
+      avi.github    = "aviflombaum"
+      avi.twitter   = "aviflombaum"
+      avi.blog_url  = "http://aviflombaum.com"
       avi.image_url = "http://aviflombaum.com/picture.jpg"
       avi.biography = "aviflombaum"
 
@@ -131,15 +131,13 @@ describe Student do
 
   describe "#update" do
     it 'updates and persists a student in the database' do
-      avi = Student.new
+      avi      = Student.new
       avi.name = "Avi"
       avi.insert
-
-      avi.name = "Bob"
+      avi.name    = "Bob"
       original_id = avi.id
-
       avi.update
-
+      
       avi_from_db = Student.find_by_name("Avi")
       expect(avi_from_db).to be_nil
 
