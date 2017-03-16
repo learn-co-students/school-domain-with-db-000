@@ -137,9 +137,7 @@ describe Student do
 
       avi.name = "Bob"
       original_id = avi.id
-
       avi.update
-
       avi_from_db = Student.find_by_name("Avi")
       expect(avi_from_db).to be_nil
 
